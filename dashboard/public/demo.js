@@ -1,0 +1,25 @@
+'use strict';
+let previewMode='sample';
+const renderLocalInterface=render;
+const localTitle=title;
+const localPolicyPage=policyPage;
+contract=()=>sampleContract();
+policyPage=()=>previewMode==='sample'?localPolicyPage().replace('Current capture evaluation','Sample capture evaluation').replace('Active policy','Illustrative policy defaults'):localPolicyPage();
+resources=()=>baseResources().replace('Selected live policy:','Illustrative policy:');
+function previewData(kind='scale'){
+  const c=sample(kind);
+  const rows=[0,1,2].map(i=>{const p=sample(kind);p.capture_key='demo-'+i;p.collected_at=new Date(Date.parse(c.collected_at)-i*300000).toISOString();return {capture_key:p.capture_key,collected_at:p.collected_at,recommended_action:p.recommendation.action,recommendation_confidence:p.recommendation.confidence,payload:p};});
+  const metrics=[92,90,88,81,75,69,62,58,44].map((value,i)=>({collected_at:new Date(Date.parse(c.collected_at)-i*300000).toISOString(),source:'illustrative_fixture',cpu_pct:value,memory_pct:68,storage_latency_ms:8.4,storage_queue_depth:2,iops_utilization_pct:62,application_latency_ms:186,slo_error_pct:.2}));
+  const data={fetchedAt:c.collected_at,capture:c,selectedPolicy:{...policy,enabled:true},policies:[{...policy,enabled:true}],history:rows,queries,events:[],matchingEvent:null,infrastructure:metrics,captureTelemetry:metrics[0],outbox:[],calibration:[],warnings:[]};
+  if(c.automatedAdvisory.action){const e=c.automatedAdvisory;data.events=[{event_id:'42',capture_key:c.capture_key,policy_name:'default',action:e.action,severity:e.severity,state:'open',last_seen_at:c.collected_at,occurrence_count:1,payload:{schemaVersion:'1.0',data:{capture:c,pressure:{sustained:e.sustainedPressure,connection:e.connectionPressure,rate:e.ratePressure,infrastructure:e.infrastructurePressure,sustainedInfrastructurePressure:e.sustainedInfrastructurePressure},infrastructureTelemetry:metrics[0]}}}];data.matchingEvent=data.events[0];data.outbox=[{outbox_id:'58',event_id:'42',event_type:'activated',status:'pending',attempts:0,created_at:c.collected_at}];}
+  return data;
+}
+toolbar=()=>`<div class="live-toolbar"><span class="live-state">${previewMode==='sample'?'Sample data · no database connected':'Imported snapshot · no database connected'}</span><label for="preview-scenario">Data source</label><select id="preview-scenario"><optgroup label="Database"><option value="postgres">PostgreSQL connection…</option></optgroup><optgroup label="Sample scenarios">${[['scale','Scale-out candidate'],['pool','Connection pressure'],['rebalance','Rebalance first'],['locality','Locality blocker'],['reset','Statistics reset']].map(([id,label])=>`<option value="${id}" ${previewMode==='sample'&&scenario===id?'selected':''}>${label}</option>`).join('')}</optgroup>${previewMode==='imported'?'<option value="imported" selected>Imported advisor JSON</option>':''}</select><button id="import-button">Import advisor JSON</button><button disabled title="Start PostgreSQL mode with npm start">Refresh data</button><button disabled title="Start PostgreSQL mode with npm start">Collect & evaluate</button><button data-local-info>Connection settings</button></div>`;
+title=()=>localTitle().replace(' · captured ',' · '+(previewMode==='sample'?'sample capture ':'imported capture '));
+render=()=>{renderLocalInterface();$('#mode').textContent='Demo mode';$('#connection-button').textContent='Connection settings';$('#footer-note').textContent=previewMode==='sample'?'Illustrative data · local demo':'Imported JSON · local demo';const note=$('.collection-note');if(note)note.textContent='Demo mode uses sample or imported data. For a database connection, run npm start in this dashboard folder and open the address printed in the terminal.';};
+refreshData=async()=>openConnection();
+importJSON=text=>{if(text.length>2000000)throw Error('Use a capture smaller than 2 MB.');const parsed=validatePayload(JSON.parse(text));const data={fetchedAt:parsed.capture.collected_at,capture:parsed.capture,selectedPolicy:null,policies:[],history:[],queries:[],events:[],matchingEvent:null,infrastructure:[],outbox:[],calibration:[],warnings:[]};if(parsed.telemetry)data.infrastructure=[parsed.telemetry];setLiveData(data);sourceEvent=parsed.event;telemetry=parsed.telemetry;previewMode='imported';view='overview';render();return{mode:'imported',action:currentAction()};};
+restore=()=>{scenario='scale';previewMode='sample';setLiveData(previewData());isSample=true;render();};
+document.addEventListener('change',e=>{if(e.target.id==='preview-scenario'){if(e.target.value==='postgres'){openConnection();render();return;}if(e.target.value==='imported')return;scenario=e.target.value;previewMode='sample';setLiveData(previewData(scenario));isSample=true;render();}});
+document.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.hasAttribute('data-local-info'))openConnection();if(b.id==='restore-preview')restore();});
+connected=true;previewMode='sample';setLiveData(previewData());isSample=true;render();

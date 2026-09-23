@@ -1,0 +1,1 @@
+"""Managed Identity Azure Monitor delivery worker for PG Workload Advisor."""

@@ -1,0 +1,6 @@
+comment = 'PostgreSQL workload, resource-pressure, and scaling advisor with optional Citus telemetry'
+default_version = '1.0'
+relocatable = false
+schema = pg_workload_advisor
+requires = 'pg_stat_statements'
+superuser = false
